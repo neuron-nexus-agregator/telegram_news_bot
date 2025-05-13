@@ -51,7 +51,7 @@ class Telegram:
         #         message += f'\n\n<blockquote expandable>{text}</blockquote>'
 
         if not self._need_markup(item):
-            message += f'\n\n<a href="{item["link"]}">Подробнее...</a>'
+            message += f' <a href="{item["link"]}">Подробнее...</a>\n\n@rv_shorts'
         return message
     
 
