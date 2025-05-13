@@ -45,24 +45,23 @@ class Telegram:
         if description not in title:
             message += f'\n\n{description}'
 
-        # if not '/articles/' in item['link']:
-        #     text = self._get_full_text(item)
-        #     if (text not in title) and ((not self._need_image(item) and len(text) + len(message) < 4000) or (len(text) + len(message) < 800)):
-        #         message += f'\n\n<blockquote expandable>{text}</blockquote>'
+        if not message.endswith('.'):
+                message += '.'
 
         if not self._need_markup(item):
-            message += f' <a href="{item["link"]}">Подробнее...</a>\n\n@rv_shorts'
+            message += f' <a href="{item["link"]}">Подробнее...</a>'
+        
+
+        message += '\n\n@rv_shorts'
         return message
     
 
     def _need_image(self, item):
-        # return len(item['title']) + len(item['description']) >= 180 or '/articles/' in item['link']
         return True
     
 
     def _need_markup(self, item):
         return len(item['title']) + len(item['description']) >= 180
-        # return '/articles/' in item['link']
     
 
     def _send_message(self, enclosure, message, needImage, link=None):
