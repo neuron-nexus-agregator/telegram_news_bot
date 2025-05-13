@@ -34,10 +34,13 @@ class Telegram:
             
         text = re.sub(r'"(.*?)"', r'«\1»', text)
         return text
+    
+    def _replace_quotes(self, text):
+        return re.sub(r'"(.*?)"', r'«\1»', text)
 
     def _create_message(self, item):
-        title = re.sub(r'"(.*?)"', r'«\1»', item["title"])
-        description = re.sub(r'"(.*?)"', r'«\1»', item["description"])
+        title = self._replace_quotes(item["title"])
+        description = self._replace_quotes(item["description"])
         message = f'<b>{title}</b>'
         if description not in title:
             message += f'\n\n{description}'
@@ -62,16 +65,26 @@ class Telegram:
         # return '/articles/' in item['link']
     
 
-    def _send_with_markup(self, enclosure, message, needImage, link):
-        markup = telebot.types.InlineKeyboardMarkup()
-        markup = markup.add(telebot.types.InlineKeyboardButton(text='Подробнее...', url=link))
+    def _send_message(self, enclosure, message, needImage, link=None):
+        markup = None
+        if link:
+            markup = telebot.types.InlineKeyboardMarkup()
+            markup.add(telebot.types.InlineKeyboardButton(text='Подробнее...', url=link))
         self._send(message=message, enclosure=enclosure, needImage=needImage, markup=markup)
-        
-
-    def _send_without_markup(self, enclosure, message, needImage):
-        self._send(message=message, enclosure=enclosure, needImage=needImage, markup=None)
 
 
+    def _handle_send_error(self, message, enclosure, needImage, markup, e):
+        logging.error(f'Ошибка первой отправки сообщения в Telegram: {e}', extra={'chat_id': self.chat_id, 'link': enclosure})
+        try:
+            if needImage:
+                self.bot.send_photo(self.chat_id, enclosure, caption=message, reply_markup=markup)
+            else:
+                self.bot.send_message(self.chat_id, message, disable_web_page_preview=True, reply_markup=markup)
+        except Exception as e:
+            logging.error(f'Ошибка второй отправки сообщения в Telegram: {e}', extra={'chat_id': self.chat_id, 'link': enclosure})
+            self.bot.send_message(self.chat_id, message, disable_web_page_preview=True, reply_markup=markup)
+
+# Использование в _send:
     def _send(self, message, enclosure, needImage, markup):
         try:
             if enclosure and needImage:
@@ -79,18 +92,7 @@ class Telegram:
             else:
                 self.bot.send_message(self.chat_id, message, disable_web_page_preview=True, reply_markup=markup)
         except Exception as e:
-            logging.error(f'Ошибка отправки сообщения в Telegram: {e}')
-            try:
-                if needImage:
-                    self.bot.send_photo(self.chat_id, enclosure, caption=message, reply_markup=markup)
-                else:
-                    self.bot.send_message(self.chat_id, message, disable_web_page_preview=True, reply_markup=markup)
-            except Exception as e:
-                if 'wrong type of the web page content' in str(e):
-                   logging.error(f'Ошибка второй отправки сообщения в Telegram: {e}', extra={'enclosure': enclosure})
-                else:
-                    logging.error(f'Ошибка второй отправки сообщения в Telegram: {e}')
-                self.bot.send_message(self.chat_id, message, disable_web_page_preview=True, reply_markup=markup)
+            self._handle_send_error(message, enclosure, needImage, markup, e)
 
 
     def send_message(self, item):
@@ -99,9 +101,9 @@ class Telegram:
         needImage = self._need_image(item)
         link = item['link']
         if self._need_markup(item):
-            self._send_with_markup(enclosure, message, needImage, link)
+            self._send_message(enclosure, message, needImage, link)
         else:
-            self._send_without_markup(enclosure, message, needImage)
+            self._send_message(enclosure, message, needImage)
 
     
     def start(self):
