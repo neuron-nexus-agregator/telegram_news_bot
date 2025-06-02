@@ -4,6 +4,7 @@ import time
 import re
 import g4f
 import logging
+from modules.yandex.service import Yandex
 
 # Настройка логгирования
 logging.basicConfig(
@@ -15,10 +16,12 @@ logging.basicConfig(
 )
 
 class Telegram:
-    def __init__(self, token, chat_id, queue):
+    def __init__(self, token: str, chat_id: int | str, queue, yandex_token: str, yandex_rewrite: bool = False):
         self.bot = telebot.TeleBot(token=token, parse_mode='HTML')
         self.chat_id = chat_id
         self.queue = queue
+        self.yandex_rewrite = yandex_rewrite
+        self.yandex = Yandex(yandex_token)
 
     def _get_enclosure(self, item):
         for link in item['links']:
@@ -26,7 +29,7 @@ class Telegram:
                 return link['href']
         return ''
     
-    def _get_full_text(self, item):
+    def _get_full_text(self, item) -> str:
         yandex = item['yandex_full-text']
         soup = BeautifulSoup(yandex, 'html.parser')
         elements = soup.find_all(['p', 'li'])
@@ -42,7 +45,15 @@ class Telegram:
         title = self._replace_quotes(item["title"])
         description = self._replace_quotes(item["description"])
         message = f'<b>{title}</b>'
-        if description not in title:
+
+        if self.yandex_rewrite:
+            try:
+                text = self._get_full_text(item)
+                message += f'\n\n{self._replace_quotes(self.yandex.rewrite(text))}'
+            except Exception as e:
+                logging.error(f'Ошибка перевода текста в Yandex: {e}', extra={'chat_id': self.chat_id})
+                message += f'\n\n{description}'
+        else:
             message += f'\n\n{description}'
 
         if not message.endswith('.'):

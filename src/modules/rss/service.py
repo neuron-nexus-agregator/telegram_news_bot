@@ -2,6 +2,7 @@ from collections import deque
 import feedparser
 import time
 
+
 import logging
 
 # Настройка логгирования
