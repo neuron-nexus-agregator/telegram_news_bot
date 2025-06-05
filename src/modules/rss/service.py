@@ -62,6 +62,8 @@ class RSS:
                 continue
             if any(stopword in item['link'] for stopword in stopwords):
                 continue
+            if 'author' not in item or item['author'] == 'Реальное время' or item['author'] == '':
+                continue
             if self._check(item['link']):
                 break  # Прерываем цикл, если элемент уже есть в self.queue
             self.queue.appendleft(item['link'])

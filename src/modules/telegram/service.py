@@ -15,6 +15,8 @@ logging.basicConfig(
     ]
 )
 
+UTM='?utm_source=rvshorts'
+
 class Telegram:
     def __init__(self, token: str, chat_id: int | str, queue, yandex_token: str, yandex_rewrite: bool = False):
         self.bot = telebot.TeleBot(token=token, parse_mode='HTML')
@@ -42,26 +44,22 @@ class Telegram:
         return re.sub(r'"(.*?)"', r'«\1»', text)
 
     def _create_message(self, item):
-        title = self._replace_quotes(item["title"])
+        title = self.add_space_after_dot(self._replace_quotes(item["title"]))
         description = self._replace_quotes(item["description"])
         message = f'<b>{title}</b>'
 
         if self.yandex_rewrite:
             try:
                 text = self._get_full_text(item)
-                message += f'\n\n{self._replace_quotes(self.yandex.rewrite(text))}'
+                message += f'\n\n{self.add_space_after_dot(self._replace_quotes(self.yandex.rewrite(text)))}'
             except Exception as e:
                 logging.error(f'Ошибка перевода текста в Yandex: {e}', extra={'chat_id': self.chat_id})
-                message += f'\n\n{description}'
+                message += f'\n\n{self.add_space_after_dot(description)}'
         else:
             message += f'\n\n{description}'
 
         if not message.endswith('.'):
                 message += '.'
-
-        if not self._need_markup(item):
-            message += f' <a href="{item["link"]}">Подробнее...</a>'
-        
 
         message += '\n\n@rv_shorts'
         return message
@@ -72,7 +70,8 @@ class Telegram:
     
 
     def _need_markup(self, item):
-        return len(item['title']) + len(item['description']) >= 180
+        return True
+       # return len(item['title']) + len(item['description']) >= 180
     
 
     def _send_message(self, enclosure, message, needImage, link=None):
@@ -119,6 +118,11 @@ class Telegram:
     def start(self):
         while True:
             item = self.queue.get()
+            item['link'] += UTM
             self.send_message(item)
             self.queue.task_done()
             time.sleep(3)
+
+    def add_space_after_dot(self, text):
+        processed = re.sub(r'\.(?! )', '. ', text)
+        return processed.strip()
